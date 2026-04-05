@@ -1,10 +1,15 @@
 import os
 import requests
-from fastapi import FastAPI, HTTPException
+from typing import Annotated
+from fastapi import FastAPI, HTTPException, Path, Query
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
+from prometheus_fastapi_instrumentator import Instrumentator
 
+# Initialize FastAPI app and Prometheus instrumentation
 app = FastAPI()
+Instrumentator().instrument(app).expose(app)
+
 
 # MongoDB connection
 mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
@@ -47,7 +52,7 @@ def home():
 
 
 @app.get("/getSingleProduct/{product_id}")
-def get_single_product(product_id):
+def get_single_product(product_id: str):
     try:
         product = collection.find_one({"ProductID": str(product_id)}, {"_id": 0})
         if not product:
@@ -68,11 +73,11 @@ def get_all():
 
 @app.post("/addNew")
 def add_new(
-    ProductID,
-    Name,
-    UnitPrice,
-    StockQuantity,
-    Description
+    ProductID: Annotated[str, Query(min_length=1)],
+    Name: Annotated[str, Query(min_length=1)],
+    UnitPrice: Annotated[float, Query(gt=0)],
+    StockQuantity: Annotated[int, Query(ge=0)],
+    Description: Annotated[str, Query(min_length=1)]
 ):
     try:
         existing = collection.find_one({"ProductID": str(ProductID)})
@@ -95,7 +100,7 @@ def add_new(
 
 
 @app.delete("/deleteOne/{product_id}")
-def delete_one(product_id):
+def delete_one(product_id: str):
     try:
         result = collection.delete_one({"ProductID": str(product_id)})
 
@@ -109,7 +114,7 @@ def delete_one(product_id):
 
 
 @app.get("/startsWith/{letter}")
-def starts_with(letter):
+def starts_with(letter: Annotated[str, Path(min_length=1, max_length=1)]):
     try:
         regex_pattern = f"^{letter}"
         products = list(
@@ -124,7 +129,7 @@ def starts_with(letter):
 
 
 @app.get("/paginate/{start_id}/{end_id}")
-def paginate(start_id, end_id):
+def paginate(start_id: str, end_id: str):
     try:
         products = list(
             collection.find(
@@ -143,7 +148,7 @@ def paginate(start_id, end_id):
 
 
 @app.get("/convert/{product_id}")
-def convert(product_id):
+def convert(product_id: str):
     try:
         product = collection.find_one({"ProductID": str(product_id)}, {"_id": 0})
         if not product:

@@ -8,11 +8,11 @@ pipeline {
   stages {
     stage('Pull From GitHub') {
       steps {
-        checkout scm
+        git branch: 'main', url: 'https://github.com/Stan-T-Pet/WebServAssignment-2026.git'
       }
     }
 
-    stage('Build and Run Ubuntu Container (Background)') {
+    stage('Build and Run Ubuntu Container in Background') {
       steps {
         sh '''
           set -eux
@@ -109,6 +109,7 @@ pipeline {
 
           NETWORK="ci-${BUILD_NUMBER}"
           API_NAME="api-ci-${BUILD_NUMBER}"
+          API_IMAGE="api-ubuntu:${BUILD_NUMBER}"
           ZIP_NAME="zip-ci-${BUILD_NUMBER}"
 
           # Generate README.txt from FastAPI OpenAPI output
