@@ -106,57 +106,53 @@ pipeline {
           NETWORK="ci-${BUILD_NUMBER}"
           API_NAME="api-ci-${BUILD_NUMBER}"
           API_IMAGE="api-ubuntu:${BUILD_NUMBER}"
+          README_NAME="readme-ci-${BUILD_NUMBER}"
           ZIP_NAME="zip-ci-${BUILD_NUMBER}"
 
-          # Generate README.txt from FastAPI OpenAPI output
-            docker run --rm --network "$NETWORK" \
-            -e API_BASE_URL="http://${API_NAME}:8000" \
-            "$API_IMAGE" \
-            python3 - <<'PY' > README.txt
-      import os
-      import json
-      import urllib.request
+          # Write README generator script to a temp file (heredoc terminator must be at column 1)
+          cat > /tmp/readme_gen.py <<'README_EOF'
+import os
+import json
+import urllib.request
 
-      base = os.environ["API_BASE_URL"].rstrip("/")
-      openapi_url = base + "/openapi.json"
-      docs_url = base + "/docs"
+base = os.environ["API_BASE_URL"].rstrip("/")
+openapi_url = base + "/openapi.json"
+docs_url = base + "/docs"
 
-      with urllib.request.urlopen(openapi_url, timeout=20) as resp:
-        spec = json.loads(resp.read().decode("utf-8"))
+with urllib.request.urlopen(openapi_url, timeout=20) as resp:
+  spec = json.loads(resp.read().decode("utf-8"))
 
-      lines = []
-      lines.append("Inventory API - Endpoints\n")
-      lines.append(f"OpenAPI JSON: {openapi_url}\n")
-      lines.append(f"Swagger UI (FastAPI): {docs_url}\n")
-      lines.append("FastAPI documentation: https://fastapi.tiangolo.com/\n\n")
+lines = []
+lines.append("Inventory API - Endpoints\\n")
+lines.append(f"OpenAPI JSON: {openapi_url}\\n")
+lines.append(f"Swagger UI (FastAPI): {docs_url}\\n")
+lines.append("FastAPI documentation: https://fastapi.tiangolo.com/\\n\\n")
 
-      paths = spec.get("paths", {})
-      for path, methods in sorted(paths.items()):
-        for method, details in sorted(methods.items()):
-          params = details.get("parameters", [])
-          param_bits = []
-          for p in params:
-            name = p.get("name")
-            where = p.get("in")
-            required = p.get("required", False)
-            schema = p.get("schema", {})
-            ptype = schema.get("type", "")
-            param_bits.append(
-              f"{name} ({where}{', required' if required else ''}{', ' + ptype if ptype else ''})"
-            )
+paths = spec.get("paths", {})
+for path, methods in sorted(paths.items()):
+  for method, details in sorted(methods.items()):
+    params = details.get("parameters", [])
+    param_bits = []
+    for p in params:
+      name = p.get("name")
+      where = p.get("in")
+      required = p.get("required", False)
+      schema = p.get("schema", {})
+      ptype = schema.get("type", "")
+      param_bits.append(
+        f"{name} ({where}{', required' if required else ''}{', ' + ptype if ptype else ''})"
+      )
+    if param_bits:
+      lines.append(f"{method.upper()} {path} - params: " + ", ".join(param_bits) + "\\n")
+    else:
+      lines.append(f"{method.upper()} {path}\\n")
 
-          if param_bits:
-            lines.append(f"{method.upper()} {path} - params: " + ", ".join(param_bits) + "\n")
-          else:
-            lines.append(f"{method.upper()} {path}\n")
+print("".join(lines), end="")
+README_EOF
 
-      print("".join(lines), end="")
-      PY
-
-          # Write the zip script to a temp file so it can be copied into the container
-          cat > /tmp/make_zip.py <<'PY'
+          # Write the zip script to a temp file
+          cat > /tmp/make_zip.py <<'ZIP_EOF'
 from __future__ import annotations
-
 import os
 from datetime import datetime
 from pathlib import Path
@@ -198,13 +194,22 @@ with ZipFile(zip_name, "w", compression=ZIP_DEFLATED) as zipf:
             add_path(zipf, p)
 
 print(zip_name.as_posix())
-PY
+ZIP_EOF
 
-          # Create the zip container and copy all files in
+          # Generate README.txt without bind mounts; Jenkins may be running in a container.
+          docker rm -f "$README_NAME" >/dev/null 2>&1 || true
+          docker create --name "$README_NAME" --network "$NETWORK" \
+            -e API_BASE_URL="http://${API_NAME}:8000" \
+            "$API_IMAGE" \
+            python3 /tmp/readme_gen.py
+          docker cp /tmp/readme_gen.py "$README_NAME:/tmp/readme_gen.py"
+          docker start -a "$README_NAME" > README.txt
+          docker rm -f "$README_NAME" >/dev/null 2>&1 || true
+
+          # Create the zip container, copy all files in, run it, extract artifacts
           docker rm -f "$ZIP_NAME" >/dev/null 2>&1 || true
           docker create --name "$ZIP_NAME" -w /work python:3.12-slim python make_zip.py
 
-          # Copy repo files into the zip container, create the zip there, then copy artifacts back.
           docker cp api.py "$ZIP_NAME:/work/api.py"
           docker cp convertToJSON.py "$ZIP_NAME:/work/convertToJSON.py"
           docker cp dashboard.py "$ZIP_NAME:/work/dashboard.py"
