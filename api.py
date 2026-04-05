@@ -14,6 +14,21 @@ client = MongoClient(mongo_uri)
 db = client[mongo_db_name]
 collection = db["products"]
 
+# Helper function to remove MongoDB's _id field from documents
+# This ensures that the API responses do not include the internal MongoDB identifier.
+def _strip_mongo_id(doc):
+    if doc is None:
+        return None
+    if isinstance(doc, list):
+        for item in doc:
+            if isinstance(item, dict):
+                item.pop("_id", None)
+        return doc
+    if isinstance(doc, dict):
+        doc.pop("_id", None)
+        return doc
+    return doc
+
 
 @app.get("/")
 def home():
@@ -37,7 +52,7 @@ def get_single_product(product_id):
         product = collection.find_one({"ProductID": str(product_id)}, {"_id": 0})
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
-        return product
+        return _strip_mongo_id(product)
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -46,7 +61,7 @@ def get_single_product(product_id):
 def get_all():
     try:
         products = list(collection.find({}, {"_id": 0}))
-        return products
+        return _strip_mongo_id(products)
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -103,7 +118,7 @@ def starts_with(letter):
                 {"_id": 0}
             )
         )
-        return products
+        return _strip_mongo_id(products)
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -122,7 +137,7 @@ def paginate(start_id, end_id):
                 {"_id": 0}
             ).sort("ProductID", 1).limit(10)
         )
-        return products
+        return _strip_mongo_id(products)
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -134,13 +149,28 @@ def convert(product_id):
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
 
+        product = _strip_mongo_id(product)
+
         usd_price = float(product["UnitPrice"])
 
-        exchange_response = requests.get("https://open.er-api.com/v6/latest/USD", timeout=10)
+        # realtime Exchangerate API call to get current USD to EUR exchange rate
+        exchangerate_key = os.getenv("EXCHANGE_RATE_API_KEY", "").strip()
+        if exchangerate_key:
+            # if key specified, use the official endpoint that requires the API key
+            url = f"https://v6.exchangerate-api.com/v6/{exchangerate_key}/latest/USD"
+        else:
+            # Fallback endpoint no key required
+            url = "https://open.er-api.com/v6/latest/USD"
+
+        exchange_response = requests.get(url, timeout=10)
         exchange_response.raise_for_status()
         exchange_data = exchange_response.json()
 
-        eur_rate = exchange_data["rates"]["EUR"]
+        rates = exchange_data.get("conversion_rates") or exchange_data.get("rates") or {}
+        eur_rate = rates.get("EUR")
+        if eur_rate is None:
+            raise HTTPException(status_code=500, detail="Exchange API error: EUR rate not found")
+
         eur_price = round(usd_price * eur_rate, 2)
 
         return {

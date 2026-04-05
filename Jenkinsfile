@@ -30,7 +30,7 @@ pipeline {
           docker rm -f "$MONGO_NAME" >/dev/null 2>&1 || true
           docker run -d --name "$MONGO_NAME" --network "$NETWORK" \
             -e MONGO_INITDB_ROOT_USERNAME=admin \
-            -e MONGO_INITDB_ROOT_PASSWORD=admin123 \
+            -e MONGO_INITDB_ROOT_PASSWORD=adminPassword123 \
             mongo:latest
 
           # Build an Ubuntu-based image for the API (contains the code pulled from GitHub)
@@ -42,7 +42,7 @@ pipeline {
           # Seed Mongo with products.json
           for i in $(seq 1 20); do
             if docker run --rm --network "$NETWORK" \
-              -e MONGO_URI="mongodb://admin:admin123@${MONGO_NAME}:27017/" \
+              -e MONGO_URI="mongodb://admin:adminPassword123@${MONGO_NAME}:27017/?authSource=admin" \
               -e MONGO_DB="inventory_db" \
               "$API_IMAGE" \
               python3 seed_mongo.py; then
@@ -55,8 +55,9 @@ pipeline {
           # Start API (background)
           docker rm -f "$API_NAME" >/dev/null 2>&1 || true
           docker run -d --name "$API_NAME" --network "$NETWORK" \
-            -e MONGO_URI="mongodb://admin:admin123@${MONGO_NAME}:27017/" \
+            -e MONGO_URI="mongodb://admin:adminPassword123@${MONGO_NAME}:27017/?authSource=admin" \
             -e MONGO_DB="inventory_db" \
+            -e EXCHANGE_RATE_API_KEY="${EXCHANGE_RATE_API_KEY:-}" \
             "$API_IMAGE"
 
           # Wait until the API is reachable

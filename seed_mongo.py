@@ -9,7 +9,7 @@ def seed() -> None:
 
     if not mongo_uri:
         raise RuntimeError(
-            "MONGO_URI is not set. Example: mongodb://admin:admin123@localhost:27017/"
+            "MONGO_URI is not set. Example: mongodb://admin:adminPassword123@localhost:27017/?authSource=admin"
         )
 
     client = MongoClient(mongo_uri)

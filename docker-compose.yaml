@@ -22,8 +22,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      MONGO_URI: mongodb://admin:adminPassword123@mongo:27017/
+      MONGO_URI: mongodb://admin:adminPassword123@mongo:27017/?authSource=admin
       MONGO_DB: inventory_db
+      EXCHANGE_RATE_API_KEY: ${EXCHANGE_RATE_API_KEY:-}
 
   jenkins:
     build:
