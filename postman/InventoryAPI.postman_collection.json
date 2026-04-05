@@ -1,0 +1,192 @@
+{
+  "info": {
+    "_postman_id": "e74edc58-9cb1-4bcf-b2b4-fd3c5a0f4f3b",
+    "name": "Inventory API - Endpoint Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Home",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Has endpoints list', function () {",
+              "  const data = pm.response.json();",
+              "  pm.expect(data).to.have.property('endpoints');",
+              "  pm.expect(data.endpoints).to.include('/getAll');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get All Products",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/getAll"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Returns an array', function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Single Product (1001)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/getSingleProduct/1001"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('ProductID is 1001', function () { pm.expect(pm.response.json().ProductID).to.eql('1001'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Starts With (S)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/startsWith/S"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Returns array', function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Paginate (1001-1010)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/paginate/1001/1010"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Returns array', function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Convert (1001 USD->EUR)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/convert/1001"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Has PriceEUR', function () { pm.expect(pm.response.json()).to.have.property('PriceEUR'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Add New Product (9998)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/addNew?ProductID=9998&Name=Test%20Product&UnitPrice=10.50&StockQuantity=5&Description=Test%20Description"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Added successfully', function () { pm.expect(pm.response.json().message).to.include('added'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Single Product (9998)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/getSingleProduct/9998"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('ProductID is 9998', function () { pm.expect(pm.response.json().ProductID).to.eql('9998'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete Product (9998)",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/deleteOne/9998"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Deleted successfully', function () { pm.expect(pm.response.json().message).to.include('deleted successfully'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Deleted Product (9998) -> 404",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/getSingleProduct/9998"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 404', function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

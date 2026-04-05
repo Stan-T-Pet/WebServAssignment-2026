@@ -3,27 +3,44 @@ version: "3.9"
 services:
   mongo:
     image: mongo:latest
-    container_name: inventory-mongo
+    container_name: mongo-inventory
     restart: unless-stopped
     ports:
       - "27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_ROOT_PASSWORD: adminPassword123
     volumes:
       - mongo_data:/data/db
 
   api:
     build: .
-    container_name: inventory-api
+    container_name: api-inventory
     restart: unless-stopped
     depends_on:
       - mongo
     ports:
       - "8000:8000"
     environment:
-      MONGO_URI: mongodb://admin:admin123@mongo:27017/
+      MONGO_URI: mongodb://admin:adminPassword123@mongo:27017/
       MONGO_DB: inventory_db
+
+  jenkins:
+    build:
+      context: ./jenkins
+    image: webservassignment-jenkins:lts-docker
+    container_name: jenkins
+    restart: unless-stopped
+    user: root
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      JAVA_OPTS: -Djenkins.install.runSetupWizard=false
 
 volumes:
   mongo_data:
+  jenkins_home:
