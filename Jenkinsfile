@@ -1,10 +1,6 @@
 pipeline {
   agent any
 
-  options {
-    timestamps()
-  }
-
   stages {
     stage('Pull From GitHub') {
       steps {
@@ -102,7 +98,7 @@ pipeline {
       }
     }
 
-    stage('Generate README.txt + Zip Artifact') {
+    stage('Generate README.txt and Zip Artifact') {
       steps {
         sh '''
           set -eux
@@ -186,6 +182,8 @@ include_paths = [
     Path("README.txt"),
     Path("postman"),
     Path("data"),
+    Path("prometheus.yml"),
+    Path("grafana"),
 ]
 
 def add_path(zipf: ZipFile, p: Path) -> None:
@@ -216,6 +214,8 @@ PY
           docker cp README.txt "$ZIP_NAME:/work/README.txt"
           docker cp postman "$ZIP_NAME:/work/postman"
           docker cp data "$ZIP_NAME:/work/data"
+          docker cp prometheus.yml "$ZIP_NAME:/work/prometheus.yml"
+          docker cp grafana "$ZIP_NAME:/work/grafana"
 
           docker start -a "$ZIP_NAME"
           rm -rf artifacts
@@ -241,7 +241,6 @@ PY
 
       // Make outputs easy to download from Jenkins
       archiveArtifacts artifacts: 'README.txt,newman-report.xml,artifacts/complete-*.zip', fingerprint: true, allowEmptyArchive: true
-      junit testResults: 'newman-report.xml', allowEmptyResults: true
 
       echo 'Pipeline complete.'
     }

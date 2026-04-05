@@ -93,6 +93,7 @@ def add_new(
         }
 
         collection.insert_one(new_product)
+        new_product.pop("_id", None)
         return {"message": "Product added successfully", "product": new_product}
 
     except PyMongoError as e:
