@@ -153,10 +153,8 @@ pipeline {
       print("".join(lines), end="")
       PY
 
-          # Create complete-DATE-TIME.zip containing source + docker config
-          docker rm -f "$ZIP_NAME" >/dev/null 2>&1 || true
-          docker create --name "$ZIP_NAME" -w /work python:3.12-slim \
-            python - <<'PY'
+          # Write the zip script to a temp file so it can be copied into the container
+          cat > /tmp/make_zip.py <<'PY'
 from __future__ import annotations
 
 import os
@@ -202,6 +200,10 @@ with ZipFile(zip_name, "w", compression=ZIP_DEFLATED) as zipf:
 print(zip_name.as_posix())
 PY
 
+          # Create the zip container and copy all files in
+          docker rm -f "$ZIP_NAME" >/dev/null 2>&1 || true
+          docker create --name "$ZIP_NAME" -w /work python:3.12-slim python make_zip.py
+
           # Copy repo files into the zip container, create the zip there, then copy artifacts back.
           docker cp api.py "$ZIP_NAME:/work/api.py"
           docker cp convertToJSON.py "$ZIP_NAME:/work/convertToJSON.py"
@@ -216,6 +218,7 @@ PY
           docker cp data "$ZIP_NAME:/work/data"
           docker cp prometheus.yml "$ZIP_NAME:/work/prometheus.yml"
           docker cp grafana "$ZIP_NAME:/work/grafana"
+          docker cp /tmp/make_zip.py "$ZIP_NAME:/work/make_zip.py"
 
           docker start -a "$ZIP_NAME"
           rm -rf artifacts
