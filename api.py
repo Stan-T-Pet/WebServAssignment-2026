@@ -1,17 +1,20 @@
+import os
+import requests
 from fastapi import FastAPI, HTTPException
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-import requests
 
 app = FastAPI()
 
-
 # MongoDB connection
-client = MongoClient("mongodb://localhost:27017")
-db = client["inventory_db"]
+mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+mongo_db_name = os.getenv("MONGO_DB", "inventory_db")
+
+client = MongoClient(mongo_uri)
+db = client[mongo_db_name]
 collection = db["products"]
 
-# Home endpoint
+
 @app.get("/")
 def home():
     return {
@@ -27,9 +30,7 @@ def home():
         ]
     }
 
-##
-# /getSingleProduct -
-# This allows you to pass a single ID number into the endpoint and return the details of the single product in JSON format.
+
 @app.get("/getSingleProduct/{product_id}")
 def get_single_product(product_id):
     try:
@@ -40,8 +41,7 @@ def get_single_product(product_id):
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# /getAll - 
-# This endpoint should return all inventory in JSON format from the database.
+
 @app.get("/getAll")
 def get_all():
     try:
@@ -51,12 +51,7 @@ def get_all():
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
-# /addNew - TODO - convert to pydantic model and use request body instead of query params
-
-# This endpoint should take in all 5 attributes of a new item and insert them into the database as a new record.
 @app.post("/addNew")
-# using query params for simlicity, but in a real application
-# would use a request body with a Pydantic model for validation.
 def add_new(
     ProductID,
     Name,
@@ -84,8 +79,6 @@ def add_new(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
-# /deleteOne - 
-# This endpoint should delete a product by the provided ID.
 @app.delete("/deleteOne/{product_id}")
 def delete_one(product_id):
     try:
@@ -100,8 +93,6 @@ def delete_one(product_id):
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
-# /startsWith - 
-# This should allow the user to pass a letter to the URL, such as s, and return all products that start with s.
 @app.get("/startsWith/{letter}")
 def starts_with(letter):
     try:
@@ -117,12 +108,7 @@ def starts_with(letter):
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
-# /paginate - 
-# This URL should pass in a product ID to start from and a product ID to end from. 
-# The products should be returned in a batch of 10.
 @app.get("/paginate/{start_id}/{end_id}")
-
-#returns prods between start_id and end_is, sorted by ProductID
 def paginate(start_id, end_id):
     try:
         products = list(
@@ -140,11 +126,6 @@ def paginate(start_id, end_id):
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-
-# /convert -
-# All of the prices are currently in dollars in the sample data. 
-# Implement a URL titled /convert which takes in the ID number of a product and returns the price in euros. 
-# An online API should be used to get the current exchange rate.
 
 @app.get("/convert/{product_id}")
 def convert(product_id):
