@@ -8,7 +8,7 @@ pipeline {
       }
     }
 
-    stage('Build and Run Ubuntu Container in Background') {
+    stage('Build and Run Ubuntu Container') {
       steps {
         sh '''
           set -eux
@@ -48,7 +48,7 @@ pipeline {
             sleep 2
           done
 
-          # Start API (background)
+          # Start API
           docker rm -f "$API_NAME" >/dev/null 2>&1 || true
           docker run -d --name "$API_NAME" --network "$NETWORK" \
             -e MONGO_URI="mongodb://admin:adminPassword123@${MONGO_NAME}:27017/?authSource=admin" \
@@ -72,7 +72,7 @@ pipeline {
       }
     }
 
-    stage('Run Postman Tests (Newman)') {
+    stage('Run Postman Tests: Newman') {
       steps {
         sh '''
           set -eux
